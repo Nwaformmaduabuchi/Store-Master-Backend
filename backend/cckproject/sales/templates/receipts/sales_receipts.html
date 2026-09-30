@@ -1,0 +1,797 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Receipt - {{ receipt.receipt_no|default:sale.id }}</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Dancing+Script:wght@600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <style type="text/css">
+    /* =========================================
+       CSS VARIABLES (Replicating Tailwind Colors)
+       ========================================= */
+    :root {
+      --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0; --slate-300: #cbd5e1;
+      --slate-400: #94a3b8; --slate-500: #64748b; --slate-600: #475569; --slate-700: #334155;
+      --slate-800: #1e293b; --slate-900: #0f172a;
+      
+      --emerald-50: #ecfdf5; --emerald-100: #d1fae5; --emerald-200: #a7f3d0; 
+      --emerald-500: #10b981; --emerald-600: #059669; --emerald-700: #047857; 
+      --emerald-900: #064e3b; --emerald-950: #022c22;
+      
+      --amber-50: #fffbeb; --amber-100: #fef3c7; --amber-200: #fde68a;
+      --amber-500: #f59e0b; --amber-700: #b45309; --amber-900: #78350f; --amber-950: #451a03;
+      
+      --teal-500: #14b8a6; --teal-700: #0f766e;
+      --indigo-600: #4f46e5; --indigo-700: #4338ca;
+      --red-600: #dc2626;
+
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-signature: 'Dancing Script', cursive;
+    }
+
+    /* =========================================
+       RESET & BASE STYLES
+       ========================================= */
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      background-color: var(--slate-100);
+      font-family: var(--font-sans);
+      color: var(--slate-800);
+      margin: 0;
+      padding: 1.5rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      -webkit-font-smoothing: antialiased;
+    }
+    p, h1, h2, h3, h4, h5, h6 { margin: 0; }
+    
+    .icon-sm { width: 12px; height: 12px; }
+    .icon-md { width: 14px; height: 14px; }
+    .icon-lg { width: 16px; height: 16px; }
+
+    /* =========================================
+       LAYOUT & CONTAINERS
+       ========================================= */
+    .receipt-wrapper {
+      width: 100%;
+      max-width: 448px; /* 28rem */
+      margin: 0 auto;
+    }
+    
+    .receipt-card {
+      background-color: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 20px 25px -5px rgba(226, 232, 240, 0.7);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .accent-stripe {
+      height: 8px;
+      background: linear-gradient(to right, var(--emerald-500), var(--teal-500), var(--indigo-600));
+    }
+
+    .receipt-content {
+      padding: 24px 28px;
+    }
+
+    /* =========================================
+       HEADER SECTION
+       ========================================= */
+    .receipt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px dashed var(--slate-200);
+    }
+    
+    .company-ident {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .company-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 12px;
+      background: linear-gradient(to bottom right, var(--emerald-500), var(--teal-700));
+      color: white;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+      overflow: hidden;
+    }
+
+    .company-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .company-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--slate-400);
+    }
+
+    .company-name {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+
+    .company-details p {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      line-height: 1.6;
+    }
+
+    .company-details p.mono-contact {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--slate-400);
+      margin-top: 2px;
+    }
+
+    /* =========================================
+       META & STATUS BADGES
+       ========================================= */
+    .receipt-meta {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .badge-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--emerald-600);
+      border-radius: 5px;
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      margin-bottom: 8px;
+    }
+
+    .meta-ref {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+
+    .meta-date { font-size: 11px; color: var(--slate-500); font-weight: 500; margin-top: 2px; }
+    .meta-time { font-size: 10px; color: var(--slate-400); font-family: var(--font-mono); }
+
+    .paid {
+      text-align:center;
+      margin-top: 12px;
+      color: var(--emerald-700);
+    }
+
+    .partial {
+      text-align:center;
+      margin-top:12px;
+      color: var(--amber-700);
+    }
+
+    /* =========================================
+       CONTEXT GRID (Customer & Payment info)
+       ========================================= */
+    .context-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 16px 0;
+      margin: 8px 0;
+    }
+
+    .context-box {
+      background-color: var(--slate-50);
+      border: 1px solid var(--slate-100);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .context-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .context-value-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--slate-900);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .context-value-sub { font-size: 11px; color: var(--slate-500); font-family: var(--font-mono); margin-top: 2px; }
+    .context-value-note { font-size: 11px; color: var(--slate-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .context-value-highlight { font-size: 11px; font-weight: 600; color: var(--emerald-600); }
+
+    .dot-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--emerald-500);
+    }
+
+    /* =========================================
+       ITEMS TABLE
+       ========================================= */
+    .items-section { margin-top: 8px; overflow-x: auto; width: 100%; }
+    
+    .items-table {
+      width: 100%;
+      text-align: left;
+      border-collapse: collapse;
+    }
+
+    .items-table th {
+      border-bottom: 1px solid var(--slate-200);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0 8px 8px 0; /* Updated padding for exact alignment with td */
+    }
+    
+    .items-table th:last-child {
+      padding-right: 0; /* Align last column flush right */
+    }
+
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    .items-table td {
+      padding: 10px 8px 10px 0;
+      vertical-align: top;
+      border-bottom: 1px solid var(--slate-100);
+    }
+    
+    .items-table td:last-child { 
+      padding-right: 0; 
+    }
+
+    .item-name {
+      font-weight: 700;
+      color: var(--slate-800);
+      font-size: 0.75rem;
+    }
+
+    .item-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--slate-400);
+      margin-top: 2px;
+    }
+
+    .color-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--slate-300);
+      display: inline-block;
+    }
+
+    .td-price { font-family: var(--font-mono); color: var(--slate-600); font-size: 11px; white-space: nowrap; }
+    .td-qty { font-family: var(--font-mono); color: var(--slate-700); font-size: 0.75rem; font-weight: 600; }
+    .td-total { font-family: var(--font-mono); font-weight: 700; color: var(--slate-900); font-size: 0.75rem; white-space: nowrap; }
+    .empty-row td { text-align: center; padding: 16px 0; color: var(--slate-400); font-size: 0.75rem; }
+
+    /* =========================================
+       TOTALS & PAYMENT BLOCK
+       ========================================= */
+    .totals-section { margin-top: 16px; padding-top: 8px; }
+    
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 12px;
+      border-top: 2px solid var(--slate-900);
+    }
+
+    .total-label-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--slate-900);
+    }
+
+    .total-label-sub { font-size: 10px; color: var(--slate-400); }
+    
+    .total-amount {
+      font-size: 1.125rem;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--slate-900);
+      letter-spacing: -0.025em;
+    }
+
+    .payment-summary {
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 0.75rem;
+      border: 1px solid;
+    }
+    
+    .payment-summary.paid { background-color: rgba(236, 253, 245, 0.6); border-color: var(--emerald-100); }
+    .payment-summary.partial { background-color: rgba(255, 251, 235, 0.6); border-color: var(--amber-100); }
+
+    .payment-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+    .payment-summary.paid .payment-icon { background-color: var(--emerald-100); color: var(--emerald-700); }
+    .payment-summary.partial .payment-icon { background-color: var(--amber-100); color: var(--amber-700); }
+
+    .payment-details-left { display: flex; align-items: center; gap: 8px; }
+    .payment-details-title { font-weight: 700; }
+    .payment-summary.paid .payment-details-title { color: var(--emerald-950); }
+    .payment-summary.partial .payment-details-title { color: var(--amber-950); }
+
+    .payment-details-ref { font-size: 10px; }
+    .payment-summary.paid .payment-details-ref { color: var(--emerald-700); }
+    .payment-summary.partial .payment-details-ref { color: var(--amber-700); }
+
+    .payment-details-right { text-align: right; }
+    
+    .payment-paid-amount { font-family: var(--font-mono); font-weight: 700; }
+    .payment-summary.paid .payment-paid-amount { color: var(--emerald-900); }
+    .payment-summary.partial .payment-paid-amount { color: var(--amber-900); }
+
+    .payment-balance { font-size: 10px; font-weight: 600; margin-top: 2px; }
+    .balance-zero { color: var(--emerald-700); }
+    .balance-due { color: var(--red-600); }
+
+    /* =========================================
+       SIGNATURES
+       ========================================= */
+    .signatures-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px dashed var(--slate-200);
+      display: grid;
+      align-items:center;
+      justify-content:center;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .signature-box { display: flex; flex-direction: column; justify-content: flex-end; }
+    .signature-box.right { text-align: right; align-items: flex-end; }
+
+    .signature-line {
+      height: 40px;
+      border-bottom: 1px solid var(--slate-300);
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 4px;
+      width: fit-content;
+    }
+    .signature-box.right .signature-line { justify-content: flex-end; }
+
+    .signature-font {
+      font-family: var(--font-signature);
+      font-size: 1.25rem;
+      color: var(--slate-600);
+      user-select: none;
+    }
+    .signature-font.cashier { font-size: 1.5rem; color: var(--indigo-700); }
+
+    .signature-name { font-size: 11px; font-weight: 700; color: var(--slate-700); margin-top: 6px; }
+    .signature-role { font-size: 10px; color: var(--slate-400); }
+
+    /* =========================================
+       BARCODE & VERIFICATION
+       ========================================= */
+    .barcode-section {
+      margin-top: 28px;
+      padding-top: 16px;
+      border-top: 1px solid var(--slate-100);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .barcode-bars {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 28px;
+    }
+    .bar { height: 100%; background-color: var(--slate-800); }
+    .bar-1 { width: 1px; } .bar-2 { width: 2px; } .bar-3 { width: 3px; } .bar-4 { width: 4px; }
+
+    .barcode-text {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--slate-400);
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+
+    .verification { text-align: right; }
+    
+    .verification-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--emerald-600);
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      background-color: var(--emerald-50);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .verification-text { font-size: 9px; color: var(--slate-400); margin-top: 2px; }
+
+    /* =========================================
+       FOOTER & TEAR LINE
+       ========================================= */
+    .receipt-footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--slate-100);
+      text-align: center;
+    }
+
+    .footer-greeting { font-size: 0.75rem; font-weight: 700; color: var(--slate-800); margin-bottom: 4px; }
+    .footer-terms { font-size: 10px; color: var(--slate-400); max-width: 250px; margin: 0 auto; line-height: 1.5; }
+    .footer-credit { font-size: 9px; color: var(--slate-300); font-family: var(--font-mono); margin-top: 8px; }
+
+    .tear-line-container {
+      height: 12px;
+      width: 100%;
+      background-color: var(--slate-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .tear-line {
+      width: 100%;
+      border-top: 1px dashed var(--slate-300);
+    }
+
+    /* =========================================
+       ACTION BAR (UI Only - Hidden in Print)
+       ========================================= */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      padding: 10px 16px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .action-badge { display: flex; align-items: center; gap: 8px; }
+    .pulse-dot { width: 10px; height: 10px; border-radius: 50%; background-color: var(--emerald-500); animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    .action-title { font-size: 0.75rem; font-weight: 600; color: var(--slate-600); letter-spacing: 0.025em; text-transform: uppercase; }
+
+    .action-buttons { display: flex; align-items: center; gap: 6px; }
+    
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      font-size: 0.75rem; font-weight: 600; border-radius: 8px;
+      background-color: var(--slate-900); color: white; border: none; cursor: pointer;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    
+    .btn-icon {
+      padding: 6px; color: var(--slate-500); border-radius: 8px;
+      background: transparent; border: none; cursor: pointer;
+    }
+
+    /* =========================================
+       PRINT SPECIFIC STYLES
+       ========================================= */
+    @media print {
+      body { background-color: white; padding: 0; }
+      .no-print { display: none !important; }
+      .receipt-card { box-shadow: none !important; border: none; border-radius: 0; }
+      .receipt-wrapper { max-width: 100%; }
+      @page { margin: 1cm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Action Bar (Hidden in WeasyPrint/PDF via .no-print) -->
+  <div class="receipt-wrapper">
+    <aside aria-label="Receipt actions" class="no-print action-bar">
+      <div class="action-badge">
+        <span class="pulse-dot"></span>
+        <span class="action-title">Official e-Receipt</span>
+      </div>
+      <div class="action-buttons">
+        <button onclick="window.print()" class="btn-primary">
+          <svg class="icon-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          <span>Print</span>
+        </button>
+        <button class="btn-icon" title="Download PDF">
+          <svg class="icon-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN RECEIPT CARD -->
+    <main class="receipt-card">
+      
+      <!-- Top Accent Brand Stripe -->
+      <div class="accent-stripe"></div>
+
+      <div class="receipt-content">
+        
+        <!-- Company Header & Receipt Status -->
+        <header class="receipt-header">
+          <div>
+            <div class="company-ident">
+              <div class="company-logo">
+                {% if company.logo %}
+                <img src="{{ company.logo.url }}" alt="company-logo" />
+                 {% else %}
+                 {{ company.name|first|upper }}
+                 {% endif %}
+                
+              </div>
+              <span class="company-label">{{ company.name }}</span>
+            </div>
+            <h1 class="company-name"></h1>
+            <div class="company-details">
+              <p>{{ company.address|default:"-" }}</p>
+              <p class="mono-contact">{{ company.phone|default:"-" }}</p>
+              <p>{{ company.email|default:"-" }}</p>
+            </div>
+          </div>
+
+          <!-- Receipt Meta + Status Badge -->
+          <div class="receipt-meta">
+            
+            <div class="meta-ref">Receipt_no: {{ receipt.receipt_no|default:sale.id }}</div>
+            <div class="meta-date">{{ receipt.created_at|default:sale.created_at|date:"M d, Y" }}</div>
+            <div class="meta-time">{{ receipt.created_at|default:sale.created_at|date:"H:i T" }}</div>
+
+            {% if amount_paid <= 0 %}
+              <div class="badge-title partial">
+                <span>No Payment</span>
+              </div>
+            {% elif outstanding <= 0 %}
+              <div class="badge-title paid">
+                <span>Fully Paid</span>
+              </div>
+            {% else %}
+              <div class="badge-title partial">
+                <span>Partly Paid</span>
+              </div>
+            {% endif %}
+            
+          </div>
+        </header>
+        <!-- Customer & Transaction Context Block -->
+        <section class="context-grid">
+          <div class="context-box">
+            <span class="context-label">Billed To</span>
+            <div>
+              <p class="context-value-title">{{ customer.customer_name|default:"Walk-in Customer" }}</p>
+              {% if customer.phone %}
+                <p class="context-value-sub">{{ customer.customer_phone }}</p>
+              {% endif %}
+              {% if customer.address %}
+                <p class="context-value-note">{{ customer.customer_address }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="context-box">
+            <span class="context-label">Payment Info</span>
+            <div>
+              {% if payment %}
+                <p class="context-value-title">
+                  <span class="dot-indicator"></span>
+                  {{ payment.payment_method|upper|default:"N/A" }}
+                </p>
+
+                <p class="context-value-sub">
+                  Ref: {{ payment.idempotency_key|default:"N/A" }}
+                </p>
+              {% else %}
+                <p class="context-value-title">
+                  <span class="dot-indicator"></span>
+                  NO PAYMENT
+                </p>
+
+                <p class="context-value-sub">
+                  No payment recorded
+                </p>
+              {% endif %}
+            </div>
+        </div>
+        </section>
+
+        <!-- Items Section -->
+        <section class="items-section">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th >Qty</th>
+                <th >Unit Price</th>
+                <th >Line Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr>
+                <td>
+                  <div class="item-name">{{ item.variant.product.name|default:"" }}</div>
+                  {% if item.variant %}
+                  <div class="item-meta">
+                    <span class="color-dot"></span>
+                    {{ item.variant.name }}
+                    <span class="color-dot"></span>
+                    {{ item.variant.color }}
+                  </div>
+                  {% endif %}
+                </td>
+                <td class=" td-qty">{{ item.quantity }}</td>
+                <td class=" td-price">₦{{ item.unit_price|default:0.00|floatformat:2|intcomma }}</td>
+                <td class=" td-total">₦{{ item.line_price|default:0.00|floatformat:2|intcomma }}</td>
+              </tr>
+              {% empty %}
+              <tr class="empty-row">
+                <td colspan="4">No items found for this sale.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Totals Breakdown & Balance -->
+        <section class="totals-section">
+          <div class="total-row">
+            <div>
+              <h3 class="total-label-title">Total Amount</h3>
+            </div>
+            <div>
+              <span class="total-amount">₦{{ subtotal|floatformat:2|intcomma }}</span>
+            </div>
+          </div>
+          
+          <div class="payment-summary {% if outstanding <= 0 %}paid{% else %}partial{% endif %}">
+            <div class="payment-details-left">
+              <div class="payment-icon">✓</div>
+              <div>
+                <p class="payment-details-title">Amount Paid</p>
+              </div>
+            </div>
+            <div class="payment-details-right">
+              <p class="payment-paid-amount">₦{{ amount_paid|floatformat:2|intcomma }}</p>
+              <p class="payment-balance {% if outstanding <= 0 %}balance-zero{% else %}balance-due{% endif %}">
+                Balance: ₦{{ outstanding|floatformat:2|intcomma }}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Signatures & Authorization -->
+        <section class="signatures-section">
+          <!-- Customer Signature -->
+          <div class="signature-box">
+            <div class="signature-line">
+              <span class="signature-font">{{ customer.customer_name|default:"Customer" }}</span>
+            </div>
+            <p class="signature-name">Customer Signature</p>
+          </div>
+
+          <!-- Cashier Signature -->
+          <div class="signature-box right">
+            <div class="signature-line">
+              <span class="signature-font">{{ sale.created_by.get_full_name|default:company.name }}</span>
+            </div>
+            <p class="signature-role">Manager</p>
+          </div>
+        </section>
+
+        <!-- Barcode / QR Section for Verification -->
+        <section class="barcode-section">
+          <div>
+            <!-- Simulated barcode bars for design -->
+            <div class="barcode-bars">
+              <span class="bar bar-2"></span><span class="bar bar-1"></span><span class="bar bar-3"></span>
+              <span class="bar bar-1"></span><span class="bar bar-4"></span><span class="bar bar-1"></span>
+              <span class="bar bar-2"></span><span class="bar bar-3"></span><span class="bar bar-1"></span>
+              <span class="bar bar-2"></span><span class="bar bar-4"></span><span class="bar bar-1"></span>
+              <span class="bar bar-2"></span><span class="bar bar-1"></span><span class="bar bar-3"></span>
+              <span class="bar bar-1"></span><span class="bar bar-2"></span><span class="bar bar-1"></span>
+              <span class="bar bar-3"></span>
+            </div>
+            <span class="barcode-text">{{ receipt.receipt_no|default:sale.id }}</span>
+          </div>
+
+          <div class="verification">
+            <div class="verification-badge">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+              <span>Verified</span>
+            </div>
+            <p class="verification-text">Scan to verify authenticity</p>
+          </div>
+        </section>
+
+        <!-- Footer & Terms Note -->
+        <footer class="receipt-footer">
+          <p class="footer-greeting">Thank you for your patronage, we look forward to seeing you again!</p>
+          <p class="footer-terms">
+            Goods received in good order cannot be returned after 7 business days. For complaints or enquiries, contact {{ company.phone|default:"our support team" }}.
+          </p>
+          <p class="footer-credit">Powered by {{ company.name }}</p>
+        </footer>
+
+      </div>
+
+      <!-- Perforated Tear / Cut line effect -->
+      <div class="tear-line-container">
+        <div class="tear-line"></div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
